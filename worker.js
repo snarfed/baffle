@@ -1,4 +1,4 @@
-/* CloudFlare worker.
+/* Baffle CloudFlare worker.
  *
  * https://developers.cloudflare.com/workers/recipes/aggregating-multiple-requests/
  */
@@ -34,22 +34,39 @@ function storyToItem(s) {
  */
 async function handleRequest(request) {
   console.log('Got request', request)
+  const auth = request.headers.get('Authorization')
+  if (!auth)
+    return new Response('Missing Authorization header', {'status': 400});
+
+  parts = auth.split(' ')
+  if (!parts || parts.length != 2)
+    return new Response('Bad Authorization header', {'status': 400});
+
+  token = parts[1]
+  if (!token)
+    return new Response('Bad Authorization header', {'status': 400});
+
   const stories_resp = await fetch('https://newsblur.com/reader/river_stories', {
       method: 'GET',
       headers: {
-        'Cookie': 'newsblur_sessionid=REDACTED',
+        'Cookie': 'newsblur_sessionid=' + token,
         'User-Agent': 'baffle 1.0 (https://github.com/snarfed/baffle)',
         }
     })
+  if (stories_resp.status != 200)
+    return new Response('NewsBlur error: ' + stories_resp.statusText, {'status': stories_resp.status});
   const stories = await stories_resp.json()
+  if (!stories['authenticated'])
+    return new Response("Couldn't log into NewsBlur", {'status': 401});
+
   const resp = {
     "items": stories['stories'].map(storyToItem),
-    "paging": {
-      "after": "xxx",
-      "before": "yyy"
-    }
+    // "paging": {
+    //   "after": "xxx",
+    //   "before": "yyy"
+    // }
   }
   console.log(resp)
-  return new Response(JSON.stringify(resp),
+  return new Response(JSON.stringify(resp, null, 2),
                       {headers: {'Content-Type': 'application/json'}});
 }
