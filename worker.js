@@ -6,8 +6,26 @@ addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request))
 })
 
-function storyToItem(s) {
-  return {
+async function fetchItems(channel, token) {
+  resp = await fetchNewsBlur('/reader/feeds', token)
+  var feed_ids = null
+  for (folder in resp['folders']) {
+    if (folder instanceof Object &&
+        (!channel || channel == Object.keys(folder)[0])) {
+      feed_ids = Object.values(folder)[0]
+      break
+    }
+  }
+
+  params = new URLSearchParams()
+  for (id in feed_ids)
+    params.append('feeds', id)
+  resp = await fetchNewsBlur('/reader/river_stories?' + params.toString(), token)
+  if (resp instanceof Response)
+    return resp
+
+  return {'items': resp['stories'].map(
+    function(s) { return {
       "type": "entry",
       "published": s['story_date'],
       "url": s['story_permalink'],
@@ -23,10 +41,16 @@ function storyToItem(s) {
       },
       "_id": s['story_id'],
       "_is_read": s['read_status'] != 0
+    }})
   }
 }
 
-function foldersToChannels(folders) {
+async function fetchChannels(token) {
+  resp = await fetchNewsBlur('/reader/feeds', token)
+  if (resp instanceof Response)
+    return resp
+
+  folders = resp['folders']
   folders.push({'notifications': null})
   return {'channels':
     folders.filter(f => typeof f == 'object')
@@ -75,31 +99,21 @@ async function handleRequest(request) {
   token = parts[1]
   if (!token)
     return new Response('Bad Authorization header', {'status': 400})
-  
+
   params = new URL(request.url).searchParams
   action = params.get('action')
 
-  if (action == 'timeline')
-    nb_path = 'reader/river_stories'
-  else if (action == 'channels')
-    nb_path = 'reader/feeds'
+  if (action == 'channels')
+    resp = await fetchChannels(token)
+  else if (action == 'timeline')
+    resp = await fetchItems(params.get('channel'), token)
   else
     return new Response(action + ' action not supported yet', {'status': 501})
 
-  resp = await fetchNewsBlur(nb_path, token)
   console.log(resp)
   if (resp instanceof Response)
     return resp
-  nb_json = resp
 
-  if (action == 'channels')
-    resp = foldersToChannels(nb_json['folders'])
-  else if (action == 'timeline')
-    resp = {'items': nb_json['stories'].map(storyToItem)}
-  else
-    return new Response(action + ' action not supported yet', {'status': 501})
-
-  console.log(resp)
   return new Response(JSON.stringify(resp, null, 2),
-                      {headers: {'Content-Type': 'application/json'}});
+                      {headers: {'Content-Type': 'application/json'}})
 }
