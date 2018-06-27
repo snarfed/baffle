@@ -14,8 +14,6 @@ function storyToItem(s) {
       "author": {
           "type": "card",
           "name": s['story_authors']
-          // "url": "",
-          // "photo": "",
       },
       "category": s['story_tags'],
       "photo": s['image_urls'],
@@ -28,6 +26,21 @@ function storyToItem(s) {
   }
 }
 
+function foldersToChannels(folders) {
+  folders.push({'notifications': null})
+  return {'channels':
+    folders.filter(f => typeof f == 'object')
+      .map(function(f) {
+        name = Object.keys(f)[0]
+        return {
+          'uid': name,
+          'name': name,
+          'unread': 0
+        }
+      })
+  }
+}
+
 /**
  * Fetch and log a given request object
  * @param {Request} request
@@ -36,37 +49,51 @@ async function handleRequest(request) {
   console.log('Got request', request)
   const auth = request.headers.get('Authorization')
   if (!auth)
-    return new Response('Missing Authorization header', {'status': 400});
+    return new Response('Missing Authorization header', {'status': 400})
 
   parts = auth.split(' ')
   if (!parts || parts.length != 2)
-    return new Response('Bad Authorization header', {'status': 400});
+    return new Response('Bad Authorization header', {'status': 400})
 
   token = parts[1]
   if (!token)
-    return new Response('Bad Authorization header', {'status': 400});
+    return new Response('Bad Authorization header', {'status': 400})
+  
+  params = new URL(request.url).searchParams
+  action = params.get('action')
 
-  const stories_resp = await fetch('https://newsblur.com/reader/river_stories', {
+  const nb_init = {
       method: 'GET',
       headers: {
         'Cookie': 'newsblur_sessionid=' + token,
         'User-Agent': 'baffle 1.0 (https://github.com/snarfed/baffle)',
         }
-    })
-  if (stories_resp.status != 200)
-    return new Response('NewsBlur error: ' + stories_resp.statusText, {'status': stories_resp.status});
-  const stories = await stories_resp.json()
-  if (!stories['authenticated'])
-    return new Response("Couldn't log into NewsBlur", {'status': 401});
+    }
 
-  const resp = {
-    "items": stories['stories'].map(storyToItem),
-    // "paging": {
-    //   "after": "xxx",
-    //   "before": "yyy"
-    // }
-  }
+  if (action == 'timeline')
+    nb_path = 'reader/river_stories'
+  else if (action == 'channels')
+    nb_path = 'reader/feeds'
+  else
+    return new Response(action + ' action not supported yet', {'status': 501})
+
+  const nb_resp = await fetch('https://newsblur.com/' + nb_path, nb_init)
+  if (nb_resp.status != 200)
+    return new Response('NewsBlur error: ' + nb_resp.statusText, {'status': nb_resp.status});
+  const nb_json = await nb_resp.json()
+  if (!nb_json['authenticated'])
+    return new Response("Couldn't log into NewsBlur", {'status': 401})
+  // console.log('NewsBlur response: ' + JSON.stringify(nb_json))
+
+  if (action == 'channels')
+    resp = foldersToChannels(nb_json['folders'])
+  else if (action == 'timeline')
+    resp = {'items': nb_json['stories'].map(storyToItem)}
+  else
+    return new Response(action + ' action not supported yet', {'status': 501})
+
   console.log(resp)
   return new Response(JSON.stringify(resp, null, 2),
                       {headers: {'Content-Type': 'application/json'}});
 }
+
