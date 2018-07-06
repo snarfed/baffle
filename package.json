@@ -1,0 +1,40 @@
+{
+  "name": "baffle",
+  "description": "Microsub bridge.",
+  "version": "0.0.1",
+  "private": true,
+  "license": "Public domain",
+  "author": "Ryan Barrett",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/snarfed/baffle.git"
+  },
+  "engines": {
+    "node": "8.x.x"
+  },
+  "scripts": {
+    "deploy": "gcloud app deploy",
+    "start": "node app.js",
+    "lint": "repo-tools lint",
+    "pretest": "npm run lint",
+    "system-test": "repo-tools test app",
+    "test": "npm run system-test",
+    "e2e-test": "repo-tools test deploy"
+  },
+  "dependencies": {
+    "express": "^4.16.3"
+  },
+  "devDependencies": {
+    "@google-cloud/nodejs-repo-tools": "^2.3.0",
+    "semistandard": "^12.0.1"
+  },
+  "cloud-repo-tools": {
+    "test": {
+      "app": {
+        "msg": "Hello, world!"
+      }
+    },
+    "requiresKeyFile": true,
+    "requiresProjectId": true
+  }
+}
