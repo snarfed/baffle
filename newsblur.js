@@ -1,10 +1,10 @@
-/* Baffle CloudFlare worker.
+/* NewsBlur endpoint.
  *
- * https://developers.cloudflare.com/workers/recipes/aggregating-multiple-requests/
+ * https://newsblur.com/api
  */
-addEventListener('fetch', event => {
-  event.respondWith(handleRequest(event.request))
-})
+'use strict';
+
+const fetch = require('node-fetch');
 
 async function fetchItems(channel, token) {
   resp = await fetchNewsBlur('/reader/feeds', token)
@@ -26,31 +26,29 @@ async function fetchItems(channel, token) {
 
   return {'items': resp['stories'].map(
     function(s) { return {
-      "type": "entry",
-      "published": s['story_date'],
-      "url": s['story_permalink'],
-      "author": {
-          "type": "card",
-          "name": s['story_authors']
+      type: 'entry',
+      published: s.story_date,
+      url: s.story_permalink,
+      author: {
+        type: 'card',
+        name: s.story_authors,
       },
-      "category": s['story_tags'],
-      // "photo": s['image_urls'],
-      "name": s['story_title'],
-      "content": {
-          "html": s['story_content']
-      },
-      "_id": s['story_id'],
-      "_is_read": s['read_status'] != 0
+      category: s.story_tags,
+      // photo: s.image_urls,
+      name: s.story_title,
+      content: {html: s.story_content},
+      _id: s.story_id,
+      _is_read: s.read_status != 0,
     }})
   }
 }
 
 async function fetchChannels(token) {
-  resp = await fetchNewsBlur('/reader/feeds', token)
+  var resp = await fetchNewsBlur('/reader/feeds', token)
   if (resp instanceof Response)
     return resp
 
-  folders = resp['folders']
+  var folders = resp['folders']
   folders.push({'notifications': null})
   return {'channels':
     folders.filter(f => typeof f == 'object')
@@ -66,7 +64,7 @@ async function fetchChannels(token) {
 }
 
 async function fetchNewsBlur(path, token) {
-  const nb_resp = await fetch('https://newsblur.com/' + path, {
+  const nb_resp = await fetch('https://newsblur.com' + path, {
       method: 'GET',
       headers: {
         'Cookie': 'newsblur_sessionid=' + token,
@@ -117,3 +115,6 @@ async function handleRequest(request) {
   return new Response(JSON.stringify(resp, null, 2),
                       {headers: {'Content-Type': 'application/json'}})
 }
+
+module.exports.fetchItems = fetchItems;
+module.exports.fetchChannels = fetchChannels;
