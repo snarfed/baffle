@@ -2,29 +2,34 @@
  *
  * https://newsblur.com/api
  */
-'use strict';
+'use strict'
 
-const fetch = require('node-fetch');
+const fetch = require('node-fetch')
 
-async function fetchItems(channel, token) {
-  resp = await fetchNewsBlur('/reader/feeds', token)
-  var feed_ids = null
-  for (folder in resp['folders']) {
+async function fetchItems(res, channel, token) {
+  const feeds = await fetchNewsBlur(res, '/reader/feeds', token)
+  // TODO: switch to exceptions
+  if (!feeds)
+    return
+
+  let feedIds = null
+  for (folder in feeds['folders']) {
     if (folder instanceof Object &&
         (!channel || channel == Object.keys(folder)[0])) {
-      feed_ids = Object.values(folder)[0]
+      feedIds = Object.values(folder)[0]
       break
     }
   }
 
-  params = new URLSearchParams()
-  for (id in feed_ids)
+  let params = new URLSearchParams()
+  for (id in feedIds)
     params.append('feeds', id)
-  resp = await fetchNewsBlur('/reader/river_stories?' + params.toString(), token)
-  if (resp instanceof Response)
-    return resp
+  const stories = await fetchNewsBlur(
+    res, '/reader/river_stories?' + params.toString(), token)
+  if (!stories)
+    return
 
-  return {'items': resp['stories'].map(
+  res.json({'items': stories['stories'].map(
     function(s) { return {
       type: 'entry',
       published: s.story_date,
@@ -40,20 +45,19 @@ async function fetchItems(channel, token) {
       _id: s.story_id,
       _is_read: s.read_status != 0,
     }})
-  }
+  })
 }
 
-async function fetchChannels(token) {
-  var resp = await fetchNewsBlur('/reader/feeds', token)
-  if (resp instanceof Response)
-    return resp
+async function fetchChannels(res, token) {
+  let feeds = await fetchNewsBlur(res, '/reader/feeds', token)
+  if (!feeds)
+    return feeds
 
-  var folders = resp['folders']
-  folders.push({'notifications': null})
-  return {'channels':
-    folders.filter(f => typeof f == 'object')
+  feeds.folders.push({'notifications': null})
+  const channels = {
+    'channels': feeds.folders.filter(f => typeof f == 'object')
       .map(function(f) {
-        name = Object.keys(f)[0]
+        const name = Object.keys(f)[0]
         return {
           'uid': name,
           'name': name,
@@ -61,60 +65,71 @@ async function fetchChannels(token) {
         }
       })
   }
+  res.json(channels)
 }
 
-async function fetchNewsBlur(path, token) {
-  const nb_resp = await fetch('https://newsblur.com' + path, {
+/**
+ * Makes a NewsBlur API call.
+ *
+ * If it succeeds, returns a JSON object. If it fails, writes details into res
+ * and returns null.
+ *
+ * @param {String} path, NewsBlur API path
+ * @param {String} token, access token
+ * @param {express.Response} res
+ */
+async function fetchNewsBlur(res, path, token) {
+  const nbRes = await fetch('https://newsblur.com' + path, {
       method: 'GET',
       headers: {
         'Cookie': 'newsblur_sessionid=' + token,
-        'User-Agent': 'baffle 1.0 (https://github.com/snarfed/baffle)',
-        }
+        'User-Agent': 'Baffle (https://baffle.tech)',
+      }
     })
-  if (nb_resp.status != 200)
-    return new Response('NewsBlur error: ' + nb_resp.statusText, {'status': nb_resp.status})
-  const nb_json = await nb_resp.json()
-  if (!nb_json['authenticated'])
-    return new Response("Couldn't log into NewsBlur", {'status': 401})
-  // console.log('NewsBlur response: ' + JSON.stringify(nb_json))
-  return nb_json
+  if (nbRes.status != 200) {
+    const msg = 'NewsBlur error: ' + nbRes.statusText
+    console.log(msg)
+    res.status(nbRes.status).send(msg)
+    return null
+  }
+
+  const nbJson = await nbRes.json()
+  if (!nbJson['authenticated']) {
+    const msg = "Couldn't log into NewsBlur" + JSON.stringify(nbJson)
+    console.log(msg)
+    res.status(401).send(msg)
+    return null
+  }
+
+  return nbJson
 }
 
 /**
  * Fetch and log a given request object
- * @param {Request} request
+ * @param {Request} req
  */
-async function handleRequest(request) {
-  console.log('Got request', request)
-  const auth = request.headers.get('Authorization')
+async function handle(req, res) {
+  // console.log('Got request', req.url, req.body)
+  const auth = req.header('Authorization')
   if (!auth)
-    return new Response('Missing Authorization header', {'status': 400})
+    return res.status(400).send('Missing Authorization header')
 
-  parts = auth.split(' ')
+  const parts = auth.split(' ')
   if (!parts || parts.length != 2)
-    return new Response('Bad Authorization header', {'status': 400})
+    return res.status(400).send('Bad Authorization header')
 
-  token = parts[1]
+  const token = parts[1]
   if (!token)
-    return new Response('Bad Authorization header', {'status': 400})
+    return res.status(400).send('Bad Authorization header')
 
-  params = new URL(request.url).searchParams
-  action = params.get('action')
-
-  if (action == 'channels')
-    resp = await fetchChannels(token)
-  else if (action == 'timeline')
-    resp = await fetchItems(params.get('channel'), token)
+  if (req.query.action == 'channels')
+    await fetchChannels(res, token)
+  else if (req.query.action == 'timeline')
+    await fetchItems(params.get('channel'), res, token)
   else
-    return new Response(action + ' action not supported yet', {'status': 501})
+    res.status(501).send(req.query.action + ' action not supported yet')
 
-  console.log(resp)
-  if (resp instanceof Response)
-    return resp
-
-  return new Response(JSON.stringify(resp, null, 2),
-                      {headers: {'Content-Type': 'application/json'}})
+  // console.log('Inside, sending response', res.statusCode)
 }
 
-module.exports.fetchItems = fetchItems;
-module.exports.fetchChannels = fetchChannels;
+module.exports.handle = handle

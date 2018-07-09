@@ -15,19 +15,20 @@
   "scripts": {
     "deploy": "gcloud app deploy",
     "start": "node app.js",
-    "system-test": "ava -T 30s */*.test.js",
+    "system-test": "ava */*.test.js",
     "app-test": "repo-tools test app",
     "test": "npm run system-test",
     "e2e-test": "repo-tools test deploy"
   },
   "dependencies": {
-    "express": "^4.16.3"
+    "express": "^4.16.3",
+    "node-fetch": "^2.1.2"
   },
   "devDependencies": {
-    "ava": "^0.25.0",
     "@google-cloud/nodejs-repo-tools": "^2.3.0",
+    "ava": "^0.25.0",
     "nock": "^9.4.1",
-    "node-fetch": "^2.1.2"
+    "supertest": "^3.1.0"
   },
   "cloud-repo-tools": {
     "requiresKeyFile": true,

@@ -1,18 +1,18 @@
-'use strict';
+'use strict'
 
-const express = require('express');
+const express = require('express')
+const newsblur = require('./newsblur.js')
 
-const app = express();
+const app = express()
 
 app.get('/', (req, res) => {
-  res.status(200).send('Hello, world!').end();
-});
+  res.status(200).send('Hello, world!').end()
+})
 
-// Start the server
-const PORT = process.env.PORT || 8080;
-const server = app.listen(PORT, () => {
-  console.log(`App listening on port ${PORT}`);
-  console.log('Press Ctrl+C to quit.');
-});
+app.get('/newsblur/:userId', async (req, res) => {
+  await newsblur.handle(req, res)
+  // console.log('Outside, sending response', res.statusCode)
+  // res.end()
+})
 
-module.exports = server;
+module.exports = app
