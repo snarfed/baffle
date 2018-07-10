@@ -14,7 +14,7 @@
   },
   "scripts": {
     "deploy": "gcloud app deploy",
-    "start": "node app.js",
+    "start": "node server.js",
     "system-test": "ava */*.test.js",
     "app-test": "repo-tools test app",
     "test": "npm run system-test",

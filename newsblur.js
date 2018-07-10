@@ -5,7 +5,61 @@
 'use strict'
 
 const fetch = require('node-fetch')
+const querystring = require('querystring')
+const secrets = require('./secrets.json')
 
+
+/**
+ * OAuth.
+ */
+function oauthRedirectUri(req) {
+  return new URL('/newsblur/callback',
+                 // req.protocol + '://' + req.header('Host')
+                 'https://baffle.tech'
+                ).toString()
+}
+
+function oauthStart(req, res) {
+  const url = 'https://newsblur.com/oauth/authorize?' + querystring.stringify({
+    response_type: 'code',
+    redirect_uri: oauthRedirectUri(req),
+    client_id: secrets.newsblur.client_id,
+  })
+  console.log('Redirecting to ', url)
+  res.redirect(url)
+}
+module.exports.oauthStart = oauthStart
+
+async function oauthCallback(req, res) {
+  // TODO: https://newsblur.com/social/profile, resJson.user_profile.username
+  const body = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code: req.query.code,
+    redirect_uri: oauthRedirectUri(req),
+    client_id: secrets.newsblur.client_id,
+    client_secret: secrets.newsblur.client_secret,
+  })
+  const nbRes = await fetch('https://newsblur.com/oauth/token', {
+      method: 'POST',
+      headers: {'User-Agent': 'Baffle (https://baffle.tech)'},
+      body: body,
+  })
+
+  if (nbRes.status != 200) {
+    const msg = 'NewsBlur error: ' + nbRes.statusText
+    console.log(msg)
+    res.status(nbRes.status).send(msg)
+    return null
+  }
+
+  res.json(await nbRes.json())
+}
+module.exports.oauthCallback = oauthCallback
+
+
+/**
+ * Microsub.
+ */
 async function fetchItems(res, channel, token) {
   const feeds = await fetchNewsBlur(res, '/reader/feeds', token)
   // TODO: switch to exceptions
@@ -131,5 +185,4 @@ async function handle(req, res) {
 
   // console.log('Inside, sending response', res.statusCode)
 }
-
 module.exports.handle = handle
