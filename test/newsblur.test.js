@@ -2,16 +2,92 @@
 
 const test = require('ava')
 const express = require('express')
+// const Datastore = require('@google-cloud/datastore')
 const nock = require('nock')
 const fetch = require('node-fetch')
+const querystring = require('querystring')
 const supertest = require('supertest')
 
 const app = require('../app.js')
+const newsblur = require('../newsblur.js')
+const secrets = require('../secrets.json')
 
+// TODO
+// app.secrets = {
+//   'newsblur': {
+//     'client_id': 'my-client-id',
+//     'client_secret': 'my-client-secret',
+//   }
+// }
+const datastore = newsblur.datastore
+
+
+test('oauthStart', async t => {
+  const res = await supertest(app).get('/newsblur/start')
+  t.is(res.statusCode, 302)
+  t.regex(querystring.unescape(res.get('Location')),
+          /https:\/\/newsblur.com\/oauth\/authorize\?response_type=code&redirect_uri=http:\/\/.+\/newsblur\/callback&client_id=[^&]+/)
+})
+
+test('oauthCallback', async t => {
+  nock('https://newsblur.com')
+    .post('/oauth/token')
+  // TODO
+// , querystring.stringify({
+//       grant_type: 'authorization_code',
+//       code: 'my-code',
+//       redirect_uri: /http:\/\/.+\/newsblur\/callback/,
+//       client_id: secrets.newsblur.client_id,
+//       client_secret: secrets.newsblur.client_secret,
+//     }))
+    .reply(200, {
+      access_token: 'my-access-token',
+      token_type: 'Bearer',
+      expires_in: 315360000,
+      refresh_token: 'my-refresh-token',
+      scope: 'read write ifttt',
+    })
+
+  const profile = {
+    authenticated: true,
+    result: 'ok',
+    user_id: 180419,
+    user_profile: {
+      id: 'social:180419',
+      user_id: 180419,
+      username: 'snarfed',
+      'protected': false,
+      'private': false,
+      website: 'https://snarfed.org',
+      feed_link: 'http://snarfed.newsblur.com/',
+      feed_address: 'http://www.newsblur.com/social/rss/180419/snarfed',
+      bio: '',
+      location: '',
+      feed_title: "snarfed's blurblog",
+      photo_url: 'https://s3.amazonaws.com/avatars.newsblur.com/avatars/180419/thumbnail_profile_1371535876.jpg',
+      large_photo_url: 'https://s3.amazonaws.com/avatars.newsblur.com/avatars/180419/large_profile_1371535876.jpg',
+    },
+    profiles: {},
+    activities: ['...'],
+  }
+  nock('https://newsblur.com',
+       {reqheaders: {'Authorization': 'Bearer my-access-token',
+                     'User-Agent': 'Baffle (https://baffle.tech)'}})
+    .get('/social/profile')
+    .reply(200, profile)
+
+  const res = await supertest(app).get('/newsblur/callback?code=my-code')
+  t.is(res.statusCode, 200)
+
+  const user = (await datastore.get(datastore.key(['NewsBlurUser', 'snarfed'])))[0]
+  t.is(user.access_token, 'my-access-token')
+  t.deepEqual(user.profile, profile)
+})
 
 test('fetchChannels', async t => {
-  nock('https://newsblur.com')
-       // {reqheaders: {Cookie: 'newsblur_sessionid=abc123', 'User-Agent': 'Baffle (https://baffle.tech)'}})
+  nock('https://newsblur.com',
+       {reqheaders: {'Authorization': 'Bearer my-token',
+                     'User-Agent': 'Baffle (https://baffle.tech)'}})
     .get('/reader/feeds')
     .reply(200, {
       authenticated: true,
