@@ -14,6 +14,9 @@ const secrets = require('./secrets.json')
 
 // non-const so that unit tests can override
 let datastore = new Datastore()
+// {
+//   apiEndpoint: 'http://localhost:8081',
+// })
 module.exports.datastore = datastore
 
 
