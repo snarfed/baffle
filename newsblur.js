@@ -7,13 +7,13 @@
 const Datastore = require('@google-cloud/datastore')
 const fetch = require('node-fetch')
 const querystring = require('querystring')
+const { URL, URLSearchParams } = require('url')
 
-// TODO: non-const so that unit tests can override
-let secrets = require('./secrets.json')
+// TODO: override in unit tests
+const secrets = require('./secrets.json')
 
-const datastore = new Datastore({
-  apiEndpoint: 'http://localhost:8081',
-})
+// non-const so that unit tests can override
+let datastore = new Datastore()
 module.exports.datastore = datastore
 
 

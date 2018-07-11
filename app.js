@@ -4,10 +4,11 @@ const express = require('express')
 const newsblur = require('./newsblur.js')
 
 const app = express()
+app.enable('trust proxy')
 
 app.get('/', (req, res) => {
   // console.log('Got request', req.url, req.body, req)
-  res.status(200).send('Hello, world! ' + req)
+  res.status(200).send('Hello, world!')
 })
 
 app.get('/newsblur/start', (req, res) => {
