@@ -17,7 +17,7 @@ function catcher(fn) {
     try {
       await fn(req, res)
     } catch (err) {
-      console.error('ooo', err)
+      console.error(err)
       res.end()
     }
   }

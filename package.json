@@ -15,7 +15,7 @@
   "scripts": {
     "deploy": "gcloud app deploy",
     "start": "node server.js",
-    "system-test": "gcloud beta emulators datastore start --no-legacy --no-store-on-disk & sleep 2; ava */*.test.js; kill %1",
+    "system-test": "NODE_ENV=development gcloud beta emulators datastore start --no-legacy --no-store-on-disk & sleep 2; ava */*.test.js; kill %1",
     "app-test": "repo-tools test app",
     "test": "npm run system-test",
     "e2e-test": "repo-tools test deploy"

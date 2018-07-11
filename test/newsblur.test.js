@@ -2,7 +2,6 @@
 
 const test = require('ava')
 const express = require('express')
-const Datastore = require('@google-cloud/datastore')
 const nock = require('nock')
 const fetch = require('node-fetch')
 const querystring = require('querystring')
@@ -20,11 +19,7 @@ const secrets = require('../secrets.json')
 //   }
 // }
 
-// TODO: why doesn't this work?
-newsblur.datastore = new Datastore({
-  apiEndpoint: 'http://localhost:8081',
-})
-let datastore = newsblur.datastore
+const datastore = newsblur.datastore
 
 
 test('oauthStart', async t => {
