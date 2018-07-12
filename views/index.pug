@@ -1,0 +1,48 @@
+html
+  head
+    meta(http-equiv="content-type" content="text/html; charset=utf-8")
+    meta(name="viewport" content="width=device-width")
+    title Baffle
+    //- link(rel="stylesheet" href="/public/bootstrap.min.css")
+    link(rel="stylesheet" href="/public/style.css")
+
+body
+  // github ribbon: https://github.com/blog/273-github-ribbons
+  a(href="https://github.com/snarfed/baffle")
+    img(
+      style="position: absolute; top: 0; right: 0; border: 0;"
+      src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png"
+      alt="Fork me on GitHub"
+    )
+
+  .container
+    h1.
+      #[img(id="logo" src="/public/baffle.png")] Baffle
+
+    p.lead.
+      Lets you use #[a(href="https://indieweb.org/Microsub-spec") Microsub] client apps with traditional feed readers like #[a(href="https://www.newsblur.com/") NewsBlur] ...and maybe soon others too!
+
+    form(method="post" action="/newsblur/start")
+      p.lead Click to get started:
+        input(
+          class="button"
+          type="image"
+          alt="NewsBlur"
+          src="/public/newsblur_button.png"
+          width="306"
+        )
+
+    //- {% if declined %}
+    //- <span style="color: red">User declined the access request.</span>
+    //- {% else %}{% if error %}
+    //- <span style="color: red">Error fetching user details.</span>
+    //- {% endif %}
+    //- {% endif %}
+    //- {% if entity %}
+    //- <span style="color: green">
+    //-  Authenticated {{ entity.user_display_name() }} on {{ entity.site_name() }}.</span>
+    //- {% endif %}
+
+    p#privacy
+      | This app does not store or use any data, yours or anyone else's. It only reformats data and passes it through in response to your own Microsub requests. 
+      a#contact(href="https://github.com/snarfed/baffle/issues") Questions?

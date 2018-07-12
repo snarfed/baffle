@@ -5,6 +5,7 @@ const newsblur = require('./routes/newsblur.js')
 
 const app = express()
 app.enable('trust proxy')
+app.set('view engine', 'pug')
 
 /*
  * Catch exceptions in async functions that would otherwise hang supertest.
@@ -23,6 +24,10 @@ function catcher(fn) {
   }
 }
 
+app.get('/', function (req, res) {
+  res.render('index', {})
+})
+
 app.get('/newsblur/start', (req, res) => {
   newsblur.oauthStart(req, res)
 })
@@ -38,7 +43,6 @@ app.get('/newsblur/:userId', catcher(async (req, res) => {
 // These duplicate handlers in app.yaml. If you change them here, change them
 // there too! Background:
 // https://groups.google.com/d/topic/google-appengine/ywNrcyO1CFk/discussion
-app.use('/static', express.static('public'));
-app.use('/', express.static('public'));
+app.use('/public', express.static('public'));
 
 module.exports = app
