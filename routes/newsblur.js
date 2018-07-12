@@ -78,7 +78,7 @@ async function oauthCallback(req, res) {
       profile: profile,
     },
   })
-  res.send('ok!')
+  res.render('index', {username: profile.user_profile.username})
 }
 module.exports.oauthCallback = oauthCallback
 

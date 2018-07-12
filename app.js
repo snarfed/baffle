@@ -28,7 +28,7 @@ app.get('/', function (req, res) {
   res.render('index', {})
 })
 
-app.get('/newsblur/start', (req, res) => {
+app.post('/newsblur/start', (req, res) => {
   newsblur.oauthStart(req, res)
 })
 

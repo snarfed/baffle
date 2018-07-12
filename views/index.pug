@@ -20,7 +20,7 @@ body
       #[img(id="logo" src="/public/baffle.png")] Baffle
 
     p.lead.
-      Lets you use #[a(href="https://indieweb.org/Microsub-spec") Microsub] client apps with traditional feed readers like #[a(href="https://www.newsblur.com/") NewsBlur] ...and maybe soon others too!
+      Lets you use #[a(href="https://indieweb.org/Microsub-spec") Microsub] client apps with traditional feed readers like #[a(href="https://www.newsblur.com/") NewsBlur]...and maybe soon others!
 
     form(method="post" action="/newsblur/start")
       p.lead Click to get started:
@@ -32,17 +32,14 @@ body
           width="306"
         )
 
-    //- {% if declined %}
-    //- <span style="color: red">User declined the access request.</span>
-    //- {% else %}{% if error %}
-    //- <span style="color: red">Error fetching user details.</span>
-    //- {% endif %}
-    //- {% endif %}
-    //- {% if entity %}
-    //- <span style="color: green">
-    //-  Authenticated {{ entity.user_display_name() }} on {{ entity.site_name() }}.</span>
-    //- {% endif %}
+    p.lead
+      if declined
+        span(style="color: red") User declined the access request.
+      else if error
+        span(style="color: red") Error fetching user details: #{error}
+      else if username
+        span(style="color: green").
+          Authenticated user #[a(href=`https://${username}.newsblur.com/`) #{username}]!
 
-    p#privacy
-      | This app does not store or use any data, yours or anyone else's. It only reformats data and passes it through in response to your own Microsub requests. 
-      a#contact(href="https://github.com/snarfed/baffle/issues") Questions?
+    p#privacy.
+      This app does not store or use any data, yours or anyone else's. It only reformats data and passes it through in response to your own Microsub requests. #[a#contact(href="https://github.com/snarfed/baffle/issues") Questions?]
