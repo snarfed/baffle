@@ -35,4 +35,10 @@ app.get('/newsblur/:userId', catcher(async (req, res) => {
   await newsblur.handle(req, res)
 }))
 
+// These duplicate handlers in app.yaml. If you change them here, change them
+// there too! Background:
+// https://groups.google.com/d/topic/google-appengine/ywNrcyO1CFk/discussion
+app.use('/static', express.static('static'));
+app.use('/', express.static('static'));
+
 module.exports = app

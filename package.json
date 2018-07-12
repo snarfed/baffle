@@ -1,6 +1,6 @@
 {
   "name": "baffle",
-  "description": "Microsub bridge.",
+  "description": "Microsub bridge. Lets you use Microsub client apps with traditional feed readers like NewsBlur and Feedly.",
   "version": "0.0.1",
   "private": true,
   "license": "Public domain",

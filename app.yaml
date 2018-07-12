@@ -4,6 +4,9 @@
 runtime: nodejs8
 
 handlers:
+# These static file handlers are duplicated in app.js. If you change them here,
+# change them there too! Background:
+# https://groups.google.com/d/topic/google-appengine/ywNrcyO1CFk/discussion
 - url: /
   static_files: static/index.html
   upload: static/index.html
