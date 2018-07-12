@@ -7,18 +7,14 @@ handlers:
 # These static file handlers are duplicated in app.js. If you change them here,
 # change them there too! Background:
 # https://groups.google.com/d/topic/google-appengine/ywNrcyO1CFk/discussion
-- url: /
-  static_files: public/index.html
-  upload: public/index.html
-  secure: always
-  redirect_http_response_code: 301
-
 - url: /public
   static_dir: public
   secure: always
-  redirect_http_response_code: 301
+
+- url: /
+  script: auto
+  secure: always
 
 - url: /newsblur/.+
   script: auto
   secure: always
-  redirect_http_response_code: 301
