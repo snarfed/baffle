@@ -1,7 +1,7 @@
 'use strict'
 
 const express = require('express')
-const newsblur = require('./newsblur.js')
+const newsblur = require('./routes/newsblur.js')
 
 const app = express()
 app.enable('trust proxy')
@@ -38,7 +38,7 @@ app.get('/newsblur/:userId', catcher(async (req, res) => {
 // These duplicate handlers in app.yaml. If you change them here, change them
 // there too! Background:
 // https://groups.google.com/d/topic/google-appengine/ywNrcyO1CFk/discussion
-app.use('/static', express.static('static'));
-app.use('/', express.static('static'));
+app.use('/static', express.static('public'));
+app.use('/', express.static('public'));
 
 module.exports = app

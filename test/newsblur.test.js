@@ -8,7 +8,7 @@ const querystring = require('querystring')
 const supertest = require('supertest')
 
 const app = require('../app.js')
-const newsblur = require('../newsblur.js')
+const newsblur = require('../routes/newsblur.js')
 const secrets = require('../secrets.json')
 
 // TODO

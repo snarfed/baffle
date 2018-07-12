@@ -10,7 +10,7 @@ const querystring = require('querystring')
 const { URL, URLSearchParams } = require('url')
 
 // TODO: override in unit tests
-const secrets = require('./secrets.json')
+const secrets = require('../secrets.json')
 
 // set up app engine datastore connection.
 // (ideally we'd use app.get('env') but app isn't available here.)
