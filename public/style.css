@@ -54,3 +54,13 @@ h1 {
 .button:hover {
   background-color: #e0f8f8;
 }
+
+pre {
+  display: inline;
+  padding: 1em;
+  font-size: 1.2em;
+  background-color: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  color: maroon;
+}

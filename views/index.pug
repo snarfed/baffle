@@ -11,7 +11,7 @@ body
   a(href="https://github.com/snarfed/baffle")
     img(
       style="position: absolute; top: 0; right: 0; border: 0;"
-      src="https://s3.amazonaws.com/github/ribbons/forkme_right_orange_ff7600.png"
+      src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png"
       alt="Fork me on GitHub"
     )
 
@@ -20,26 +20,27 @@ body
       #[img(id="logo" src="/public/baffle-logo.png" width="100")] Baffle
 
     p.lead.
-      Lets you use #[a(href="https://indieweb.org/Microsub-spec") Microsub] client apps with traditional feed readers like #[a(href="https://www.newsblur.com/") NewsBlur]...and maybe soon others!
+      Lets you use #[a(href="https://indieweb.org/Microsub-spec") Microsub] client apps with traditional feed readers like #[a(href="https://www.newsblur.com/") NewsBlur].
 
-    form(method="post" action="/newsblur/start")
-      p.lead Click to get started:
-        input(
-          class="button"
-          type="image"
-          alt="NewsBlur"
-          src="/public/newsblur_button.png"
-          width="306"
-        )
-
-    p.lead
-      if declined
-        span(style="color: red") User declined the access request.
-      else if error
-        span(style="color: red") Error fetching user details: #{error}
-      else if username
-        span(style="color: green").
-          Authenticated user #[a(href=`https://${username}.newsblur.com/`) #{username}]!
+    if declined
+      p.lead(style="color: red") User declined the access request.
+    else if error
+      p.lead(style="color: red") Error fetching user details: #{error}
+    else if username
+      p.lead(style="color: green") Welcome! Now, add this to your web site's home page:
+      pre= `<link rel="microsub" href="https://baffle.tech/newsblur/${username}">`
+      p.lead(style="color: green").
+        ...and you're all set! Try out #[a(href="https://alltogethernow.io/") Together], #[a(href="https://indieweb.org/Indigenous") Indigenous], or #[a(href="https://monocle.p3k.io/") Monocle], and you should see your NewsBlur content.
+    else
+      form(method="post" action="/newsblur/start")
+        p.lead Click to get started:
+          input(
+            class="button"
+            type="image"
+            alt="NewsBlur"
+            src="/public/newsblur_button.png"
+            width="306"
+          )
 
     p#privacy.
       This app does not store or use any data, yours or anyone else's. It only reformats data and passes it through in response to your own Microsub requests. #[a#contact(href="https://github.com/snarfed/baffle/issues") Questions?]
