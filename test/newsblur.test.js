@@ -11,25 +11,34 @@ const app = require('../app.js')
 const newsblur = require('../routes/newsblur.js')
 const secrets = require('../secrets.json')
 
-// TODO
-// app.secrets = {
-//   'newsblur': {
-//     'client_id': 'my-client-id',
-//     'client_secret': 'my-client-secret',
-//   }
-// }
-
 const datastore = newsblur.datastore
 
+test.beforeEach.serial('clear datastore', async t => {
+  const keys = await datastore.runQuery(
+    datastore.createQuery('NewsBlurUser').select('__key__'))
 
-test('oauthStart', async t => {
-  const res = await supertest(app).get('/newsblur/start')
+  if (keys.length && keys[0].length)
+    await datastore.delete(keys[0].map(k => k[datastore.KEY]))
+})
+
+async function addUser() {
+  await datastore.save({
+    key: datastore.key(['NewsBlurUser', 'snarfed']),
+    data: {
+      access_token: 'my-token',
+      profile: {},
+    },
+  })
+}
+
+test.serial('oauthStart', async t => {
+  const res = await supertest(app).post('/newsblur/start')
   t.is(res.statusCode, 302)
   t.regex(querystring.unescape(res.get('Location')),
           /https:\/\/newsblur.com\/oauth\/authorize\?response_type=code&redirect_uri=http:\/\/.+\/newsblur\/callback&client_id=[^&]+/)
 })
 
-test('oauthCallback', async t => {
+test.serial('oauthCallback', async t => {
   nock('https://newsblur.com')
     .post('/oauth/token')
   // TODO
@@ -84,7 +93,7 @@ test('oauthCallback', async t => {
   t.deepEqual(user.profile, profile)
 })
 
-test('fetchChannels', async t => {
+function expectFeeds() {
   nock('https://newsblur.com',
        {reqheaders: {'Authorization': 'Bearer my-token',
                      'User-Agent': 'Baffle (https://baffle.tech)'}})
@@ -116,8 +125,12 @@ test('fetchChannels', async t => {
         },
       },
     })
+}
 
-  const res = await supertest(app).get('/newsblur/1?action=channels')
+test.serial('fetchChannels', async t => {
+  await addUser()
+  expectFeeds()
+  const res = await supertest(app).get('/newsblur/snarfed?action=channels')
       .set('Authorization', 'Bearer my-token')
   t.is(res.statusCode, 200)
   t.deepEqual(res.body, {
@@ -137,39 +150,49 @@ test('fetchChannels', async t => {
   })
 })
 
-// test('fetchItems', async t => {
-//   nock('https://newsblur.com')
-//        // {reqheaders: {Authentication: 'Bearer abc123'}})
-//        // {reqheaders: {Cookie: 'newsblur_sessionid=abc123'}})
-//     .get('/reader/river_stories')
-//     .reply(200, {
-//       story_id: 'abc987',
-//       story_permalink: 'http://example.com/post',
-//       story_date: '2017-01-01 00:00:00',
-//       story_title: 'My post',
-//       story_content: 'Writing some <em>HTML</em>.',
-//       read_status: 0,
-//       story_tags: ['one', 'two'],
-//       story_authors: 'Ms. Foo',
+test.serial('fetchItems', async t => {
+  await addUser()
+  expectFeeds()
+  nock('https://newsblur.com',
+       {reqheaders: {'Authorization': 'Bearer my-token',
+                     'User-Agent': 'Baffle (https://baffle.tech)'}})
+    .get('/reader/river_stories?')
+    .reply(200, {
+      authenticated: true,
+      stories: [{
+        story_id: 'abc987',
+        story_permalink: 'http://example.com/post',
+        story_date: '2017-01-01 00:00:00',
+        story_title: 'My post',
+        story_content: 'Writing some <em>HTML</em>.',
+        read_status: 0,
+        story_tags: ['one', 'two'],
+        story_authors: 'Ms. Foo',
 
-//       image_urls: ['http://example.com/image.png'],
-//       story_feed_id: 5917088,
-//       story_hash: '5917088:47ea23',
-//       guid_hash: '47ea23',
-//     })
+        image_urls: ['http://example.com/image.png'],
+        story_feed_id: 5917088,
+        story_hash: '5917088:47ea23',
+        guid_hash: '47ea23',
+      }],
+    })
 
-//   t.deepEqual({
-//     type: 'entry',
-//     _id: 'abc987',
-//     _is_read: false,
-//     url: 'http://example.com/post',
-//     name: 'My post',
-//     content: {'html': 'Writing some <em>HTML</em>.'},
-//     published: '2017-01-01 00:00:00',
-//     author: {
-//       type: 'card',
-//       name: 'Ms. Foo',
-//     },
-//     category: ['one', 'two'],
-//   }, newsblur.fetchItems())
-// })
+  const res = await supertest(app).get('/newsblur/snarfed?action=timeline')
+      .set('Authorization', 'Bearer my-token')
+  t.is(res.statusCode, 200)
+  t.deepEqual(res.body, {
+    items: [{
+      type: 'entry',
+      _id: 'abc987',
+      _is_read: false,
+      url: 'http://example.com/post',
+      name: 'My post',
+      content: {'html': 'Writing some <em>HTML</em>.'},
+      published: '2017-01-01 00:00:00',
+      author: {
+        type: 'card',
+        name: 'Ms. Foo',
+      },
+      category: ['one', 'two'],
+    }],
+  })
+})

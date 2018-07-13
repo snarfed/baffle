@@ -4,6 +4,7 @@
  */
 'use strict'
 
+const assert = require('assert');
 const Datastore = require('@google-cloud/datastore')
 const fetch = require('node-fetch')
 const querystring = require('querystring')
@@ -21,6 +22,11 @@ let datastore = new Datastore(
 module.exports.datastore = datastore
 
 
+function err(res, status, msg) {
+  console.log(`${status} ${msg}`)
+  res.status(status).send(msg)
+}
+
 /**
  * Top level URL handler.
  * @param {Request} req
@@ -29,22 +35,31 @@ async function handle(req, res) {
   // console.log('Got request', req.url, req.body)
   const auth = req.header('Authorization')
   if (!auth)
-    return res.status(400).send('Missing Authorization header')
+    return err(res, 400, 'Missing Authorization header')
 
   const parts = auth.split(' ')
   if (!parts || parts.length != 2)
-    return res.status(400).send('Bad Authorization header')
+    return err(res, 400, 'Bad Authorization header: ' + auth)
 
-  const token = parts[1]
-  if (!token)
-    return res.status(400).send('Bad Authorization header')
+  const indieauthToken = parts[1]
+  if (!indieauthToken)
+    return err(res, 400, 'Bad Authorization header: ' + auth)
+
+  const users = await datastore.get(
+    [datastore.key(['NewsBlurUser', req.params.username])])
+  if (users.length == 0 || users[0].length == 0)
+    return err(res, 400, 'User ' + req.params.username +
+               ' not found. Try signing up on https://baffle.tech !')
+
+  const token = users[0][0].access_token
+  assert(token)
 
   if (req.query.action == 'channels')
     await fetchChannels(res, token)
   else if (req.query.action == 'timeline')
-    await fetchItems(params.get('channel'), res, token)
+    await fetchItems(res, req.query.channel, token)
   else
-    res.status(501).send(req.query.action + ' action not supported yet')
+    err(res, 501, req.query.action + ' action not supported yet')
 
   // console.log('Inside, sending response', res.statusCode)
 }
@@ -87,12 +102,8 @@ async function oauthCallback(req, res) {
       body: body,
   })
 
-  if (tokenRes.status != 200) {
-    const msg = 'NewsBlur error: ' + tokenRes.statusText
-    console.log(msg)
-    res.status(tokenRes.status).send(msg)
-    return
-  }
+  if (tokenRes.status != 200)
+    return err(res, tokenRes.status, 'NewsBlur error: ' + tokenRes.statusText)
 
   // Get user profile, store in datastore
   const token = (await tokenRes.json()).access_token
@@ -122,7 +133,7 @@ async function fetchItems(res, channel, token) {
     return
 
   let feedIds = null
-  for (folder in feeds['folders']) {
+  for (const folder in feeds.folders) {
     if (folder instanceof Object &&
         (!channel || channel == Object.keys(folder)[0])) {
       feedIds = Object.values(folder)[0]
@@ -138,23 +149,21 @@ async function fetchItems(res, channel, token) {
   if (!stories)
     return
 
-  res.json({'items': stories['stories'].map(
-    function(s) { return {
-      type: 'entry',
-      published: s.story_date,
-      url: s.story_permalink,
-      author: {
-        type: 'card',
-        name: s.story_authors,
-      },
-      category: s.story_tags,
-      // photo: s.image_urls,
-      name: s.story_title,
-      content: {html: s.story_content},
-      _id: s.story_id,
-      _is_read: s.read_status != 0,
-    }})
-  })
+  res.json({'items': stories.stories.map(s => ({
+    type: 'entry',
+    published: s.story_date,
+    url: s.story_permalink,
+    author: {
+      type: 'card',
+      name: s.story_authors,
+    },
+    category: s.story_tags,
+    // photo: s.image_urls,
+    name: s.story_title,
+    content: {html: s.story_content},
+    _id: s.story_id,
+    _is_read: s.read_status != 0,
+  }))})
 }
 
 async function fetchChannels(res, token) {
@@ -163,9 +172,9 @@ async function fetchChannels(res, token) {
     return feeds
 
   feeds.folders.push({'notifications': null})
-  const channels = {
+  res.json({
     'channels': feeds.folders.filter(f => typeof f == 'object')
-      .map(function(f) {
+      .map(f => {
         const name = Object.keys(f)[0]
         return {
           'uid': name,
@@ -173,8 +182,7 @@ async function fetchChannels(res, token) {
           'unread': 0
         }
       })
-  }
-  res.json(channels)
+  })
 }
 
 /**
@@ -195,20 +203,12 @@ async function fetchNewsBlur(res, path, token) {
         'User-Agent': 'Baffle (https://baffle.tech)',
       }
     })
-  if (nbRes.status != 200) {
-    const msg = 'NewsBlur error: ' + nbRes.statusText
-    console.log(msg)
-    res.status(nbRes.status).send(msg)
-    return
-  }
+  if (nbRes.status != 200)
+    return err(res, nbRes.status, 'NewsBlur error: ' + nbRes.statusText)
 
   const nbJson = await nbRes.json()
-  if (!nbJson['authenticated']) {
-    const msg = "Couldn't log into NewsBlur" + JSON.stringify(nbJson)
-    console.log(msg)
-    res.status(401).send(msg)
-    return
-  }
+  if (!nbJson.authenticated)
+    return err(res, 401, "Couldn't log into NewsBlur" + JSON.stringify(nbJson))
 
   return nbJson
 }

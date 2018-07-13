@@ -19,6 +19,7 @@ function catcher(fn) {
       await fn(req, res)
     } catch (err) {
       console.error(err)
+      res.status(500)
       res.end()
     }
   }
@@ -36,7 +37,7 @@ app.get('/newsblur/callback', catcher(async (req, res) => {
   await newsblur.oauthCallback(req, res)
 }))
 
-app.get('/newsblur/:userId', catcher(async (req, res) => {
+app.get('/newsblur/:username', catcher(async (req, res) => {
   await newsblur.handle(req, res)
 }))
 
