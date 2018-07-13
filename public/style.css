@@ -33,6 +33,10 @@ h1 {
   font-size: 2em;
 }
 
+#logo {
+  vertical-align: middle;
+}
+
 #privacy {
   position: fixed;
   bottom: 0;
