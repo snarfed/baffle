@@ -6,7 +6,7 @@ Bridges Microsub reader clients to traditional feed reader backends.
 
 Development
 ---
-You'll need the [Google Cloud SDK](https://cloud.google.com/sdk/gcloud/) (aka `gcloud`) with the ``cloud-datastore-emulator` [component](https://cloud.google.com/sdk/docs/components#additional_components).
+You'll need the [Google Cloud SDK](https://cloud.google.com/sdk/gcloud/) (aka `gcloud`) with the `cloud-datastore-emulator` [component](https://cloud.google.com/sdk/docs/components#additional_components).
 
 Then, clone this repo, install the dependencies with `npm install`, and you should be all set!
 

@@ -22,6 +22,35 @@ module.exports.datastore = datastore
 
 
 /**
+ * Top level URL handler.
+ * @param {Request} req
+ */
+async function handle(req, res) {
+  // console.log('Got request', req.url, req.body)
+  const auth = req.header('Authorization')
+  if (!auth)
+    return res.status(400).send('Missing Authorization header')
+
+  const parts = auth.split(' ')
+  if (!parts || parts.length != 2)
+    return res.status(400).send('Bad Authorization header')
+
+  const token = parts[1]
+  if (!token)
+    return res.status(400).send('Bad Authorization header')
+
+  if (req.query.action == 'channels')
+    await fetchChannels(res, token)
+  else if (req.query.action == 'timeline')
+    await fetchItems(params.get('channel'), res, token)
+  else
+    res.status(501).send(req.query.action + ' action not supported yet')
+
+  // console.log('Inside, sending response', res.statusCode)
+}
+module.exports.handle = handle
+
+/**
  * OAuth.
  */
 function oauthRedirectUri(req) {
@@ -183,32 +212,3 @@ async function fetchNewsBlur(res, path, token) {
 
   return nbJson
 }
-
-/**
- * Fetch and log a given request object
- * @param {Request} req
- */
-async function handle(req, res) {
-  // console.log('Got request', req.url, req.body)
-  const auth = req.header('Authorization')
-  if (!auth)
-    return res.status(400).send('Missing Authorization header')
-
-  const parts = auth.split(' ')
-  if (!parts || parts.length != 2)
-    return res.status(400).send('Bad Authorization header')
-
-  const token = parts[1]
-  if (!token)
-    return res.status(400).send('Bad Authorization header')
-
-  if (req.query.action == 'channels')
-    await fetchChannels(res, token)
-  else if (req.query.action == 'timeline')
-    await fetchItems(params.get('channel'), res, token)
-  else
-    res.status(501).send(req.query.action + ' action not supported yet')
-
-  // console.log('Inside, sending response', res.statusCode)
-}
-module.exports.handle = handle
