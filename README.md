@@ -24,3 +24,10 @@ npm start
 ```
 
 ...then open [http://localhost:8080/](http://localhost:8080/).
+
+
+Misc
+---
+Where did the name come from? [Acoustic baffles](https://soundcontroltech.com/baffles-banners-clouds/what-is-an-acoustic-baffle/) ([Wikipedia](https://en.wikipedia.org/wiki/Sound_baffle)) redirect sound, Baffle redirects readers.
+
+(...OK, yes, it's a stretch. 😄)
