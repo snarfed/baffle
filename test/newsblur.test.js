@@ -40,15 +40,13 @@ test.serial('oauthStart', async t => {
 
 test.serial('oauthCallback', async t => {
   nock('https://newsblur.com')
-    .post('/oauth/token')
-  // TODO
-// , querystring.stringify({
-//       grant_type: 'authorization_code',
-//       code: 'my-code',
-//       redirect_uri: /http:\/\/.+\/newsblur\/callback/,
-//       client_id: secrets.newsblur.client_id,
-//       client_secret: secrets.newsblur.client_secret,
-//     }))
+    .post('/oauth/token', {
+      grant_type: 'authorization_code',
+      code: 'my-code',
+      redirect_uri: /http:\/\/.+\/newsblur\/callback/,
+      client_id: secrets.newsblur.client_id,
+      client_secret: secrets.newsblur.client_secret,
+    })
     .reply(200, {
       access_token: 'my-access-token',
       token_type: 'Bearer',
@@ -126,6 +124,54 @@ function expectFeeds() {
       },
     })
 }
+
+test.serial('unknown action', async t => {
+  await addUser()
+
+  let res = await supertest(app).get('/newsblur/snarfed')
+      .set('Authorization', 'Bearer my-token')
+  t.is(res.statusCode, 501)
+
+  res = await supertest(app).get('/newsblur/snarfed?action=foo')
+      .set('Authorization', 'Bearer my-token')
+  t.is(res.statusCode, 501)
+})
+
+test.serial('fetchChannels no user', async t => {
+  const res = await supertest(app).get('/newsblur/snarfed?action=channels')
+      .set('Authorization', 'Bearer my-token')
+  t.is(res.statusCode, 400)
+})
+
+test.serial('fetchChannels no Authorization header', async t => {
+  await addUser()
+  const res = await supertest(app).get('/newsblur/snarfed?action=channels')
+  t.is(res.statusCode, 401)
+})
+
+test.serial('fetchChannels bad Authorization header', async t => {
+  await addUser()
+
+  let res = await supertest(app).get('/newsblur/snarfed?action=channels')
+      .set('Authorization', 'foo bar')
+  t.is(res.statusCode, 400)
+
+  res = await supertest(app).get('/newsblur/snarfed?action=channels')
+    .set('Authorization', 'Bearer ')
+  t.is(res.statusCode, 400)
+})
+
+test.serial("fetchChannels can't log into NewsBlur", async t => {
+  await addUser()
+
+  nock('https://newsblur.com')
+    .get('/reader/feeds')
+    .reply(200, {authenticated: false})
+
+  const res = await supertest(app).get('/newsblur/snarfed?action=channels')
+      .set('Authorization', 'Bearer my-token')
+  t.is(res.statusCode, 401)
+})
 
 test.serial('fetchChannels', async t => {
   await addUser()

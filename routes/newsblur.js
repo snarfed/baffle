@@ -35,14 +35,10 @@ async function handle(req, res) {
   // console.log('Got request', req.url, req.body)
   const auth = req.header('Authorization')
   if (!auth)
-    return err(res, 400, 'Missing Authorization header')
+    return err(res, 401, 'Missing Authorization header')
 
   const parts = auth.split(' ')
-  if (!parts || parts.length != 2)
-    return err(res, 400, 'Bad Authorization header: ' + auth)
-
-  const indieauthToken = parts[1]
-  if (!indieauthToken)
+  if (!parts || parts.length != 2 || parts[0] != 'Bearer' || !parts[1])
     return err(res, 400, 'Bad Authorization header: ' + auth)
 
   const users = await datastore.get(
