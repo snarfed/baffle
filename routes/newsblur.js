@@ -70,9 +70,9 @@ async function handle(req, res) {
   const token = users[0][0].newsblur_token
   assert(token)
   if (req.query.action == 'channels')
-    await fetchChannels(res, token)
+    await channelsAction(res, token)
   else if (req.query.action == 'timeline')
-    await fetchItems(res, req.query.channel, token)
+    await timelineAction(res, req.query.channel, token)
   else
     err(res, 501, req.query.action + ' action not supported yet')
 
@@ -181,23 +181,22 @@ module.exports.oauthCallback = oauthCallback
 /**
  * Microsub.
  */
-async function fetchItems(res, channel, token) {
+async function timelineAction(res, channel, token) {
   const feeds = await fetchNewsBlur(res, '/reader/feeds', token)
   // TODO: switch to exceptions
   if (!feeds)
     return
 
-  let feedIds = null
-  for (const folder in feeds.folders) {
+  let feedIds = []
+  for (const folder of feeds.folders) {
     if (folder instanceof Object &&
         (!channel || channel == Object.keys(folder)[0])) {
-      feedIds = Object.values(folder)[0]
-      break
+      Array.prototype.push.apply(feedIds, Object.values(folder)[0])
     }
   }
 
   let params = new URLSearchParams()
-  for (id in feedIds)
+  for (const id of feedIds)
     params.append('feeds', id)
   const stories = await fetchNewsBlur(
     res, '/reader/river_stories?' + params.toString(), token)
@@ -221,7 +220,7 @@ async function fetchItems(res, channel, token) {
   }))})
 }
 
-async function fetchChannels(res, token) {
+async function channelsAction(res, token) {
   let feeds = await fetchNewsBlur(res, '/reader/feeds', token)
   if (!feeds)
     return feeds
@@ -234,7 +233,7 @@ async function fetchChannels(res, token) {
         return {
           'uid': name,
           'name': name,
-          'unread': 0
+          'unread': 0,
         }
       })
   })
@@ -251,7 +250,9 @@ async function fetchChannels(res, token) {
  * @param {express.Response} res
  */
 async function fetchNewsBlur(res, path, token) {
-  const nbRes = await fetch('https://newsblur.com' + path, {
+  const url = 'https://newsblur.com' + path
+  console.log(`Fetching ${url}`)
+  const nbRes = await fetch(url, {
       method: 'GET',
       headers: {
         'Authorization': 'Bearer ' + token,

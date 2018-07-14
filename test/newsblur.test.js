@@ -256,19 +256,19 @@ test.serial('unknown action', async t => {
   t.is(res.statusCode, 501)
 })
 
-test.serial('fetchChannels no user', async t => {
+test.serial('channelActions no user', async t => {
   const res = await supertest(app).get('/newsblur/snarfed?action=channels')
       .set('Authorization', 'Bearer my-ia-token')
   t.is(res.statusCode, 400)
 })
 
-test.serial('fetchChannels no Authorization header', async t => {
+test.serial('channelActions no Authorization header', async t => {
   await addUser()
   const res = await supertest(app).get('/newsblur/snarfed?action=channels')
   t.is(res.statusCode, 401)
 })
 
-test.serial('fetchChannels bad Authorization header', async t => {
+test.serial('channelActions bad Authorization header', async t => {
   await addUser()
 
   let res = await supertest(app).get('/newsblur/snarfed?action=channels')
@@ -280,7 +280,7 @@ test.serial('fetchChannels bad Authorization header', async t => {
   t.is(res.statusCode, 400)
 })
 
-test.serial("fetchChannels verify token fails", async t => {
+test.serial("channelActions verify token fails", async t => {
   await addUser()
   expectVerifyToken(403)
 
@@ -289,7 +289,7 @@ test.serial("fetchChannels verify token fails", async t => {
   t.is(res.statusCode, 403)
 })
 
-test.serial("fetchChannels can't log into NewsBlur", async t => {
+test.serial("channelActions can't log into NewsBlur", async t => {
   await addUser()
   expectVerifyToken(200)
   expectApi('/reader/feeds', {authenticated: false})
@@ -299,7 +299,7 @@ test.serial("fetchChannels can't log into NewsBlur", async t => {
   t.is(res.statusCode, 401)
 })
 
-test.serial('fetchChannels', async t => {
+test.serial('channelActions', async t => {
   await addUser()
   expectVerifyToken(200)
   expectApi('/reader/feeds', nbFeeds)
@@ -310,13 +310,25 @@ test.serial('fetchChannels', async t => {
   t.deepEqual(res.body, msChannels)
 })
 
-test.serial('fetchItems', async t => {
+test.serial('timelineAction', async t => {
   await addUser()
   expectVerifyToken(200)
   expectApi('/reader/feeds', nbFeeds)
-  expectApi('/reader/river_stories?', nbStories)
+  expectApi('/reader/river_stories?feeds=123&feeds=456&feeds=789', nbStories)
 
   const res = await supertest(app).get('/newsblur/snarfed?action=timeline')
+      .set('Authorization', 'Bearer my-ia-token')
+  t.is(res.statusCode, 200)
+  t.deepEqual(res.body, msTimeline)
+})
+
+test.serial('timelineAction with channel', async t => {
+  await addUser()
+  expectVerifyToken(200)
+  expectApi('/reader/feeds', nbFeeds)
+  expectApi('/reader/river_stories?feeds=789', nbStories)
+
+  const res = await supertest(app).get('/newsblur/snarfed?action=timeline&channel=Two')
       .set('Authorization', 'Bearer my-ia-token')
   t.is(res.statusCode, 200)
   t.deepEqual(res.body, msTimeline)
