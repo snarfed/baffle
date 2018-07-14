@@ -29,7 +29,7 @@ function err(res, status, msg) {
 }
 
 /**
- * Top level URL handler.
+ * Top level URL handler for Microsub actions.
  * @param {Request} req
  */
 async function handle(req, res) {
@@ -48,9 +48,23 @@ async function handle(req, res) {
     return err(res, 400, 'User ' + req.params.username +
                ' not found. Try signing up on https://baffle.tech !')
 
+  const user = users[0][0]
+  assert(user.token_endpoint)
   const token = users[0][0].access_token
   assert(token)
 
+  // Verify token
+  // https://indieweb.org/token-endpoint#Verifying_an_Access_Token
+  const verifyRes = await fetch(user.token_endpoint, {
+    method: 'GET',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'User-Agent': 'Baffle (https://baffle.tech)',
+    }})
+  if (!verifyRes.ok)
+    return err(res, 403, `Couldn't verify acces token with ${user.token_endpoint}: ${verifyRes.status} ${verifyRes.statusText}`)
+
+  // Route to specific action handler
   if (req.query.action == 'channels')
     await fetchChannels(res, token)
   else if (req.query.action == 'timeline')
@@ -123,7 +137,6 @@ async function oauthCallback(req, res) {
 
 
   let endpoint = null
-  console.log('@', websiteRes.headers.get('Link'), typeof websiteRes.headers.get('Link'))
   const links = websiteRes.headers.get('Link')
   if (links) {
     for (let link of links.split(',')) {

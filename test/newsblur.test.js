@@ -155,11 +155,21 @@ function expectApi(path, response) {
     .reply(200, response)
 }
 
+// https://indieweb.org/token-endpoint#Verifying_an_Access_Token
+function expectVerifyToken(status) {
+  nock('http://token',
+       {reqheaders: {'Authorization': 'Bearer my-token',
+                     'User-Agent': 'Baffle (https://baffle.tech)'}})
+    .get('/endpoint')
+    .reply(status, '')
+}
+
 async function addUser() {
   await datastore.save({
     key: datastore.key(['NewsBlurUser', 'snarfed']),
     data: {
       access_token: 'my-token',
+      token_endpoint: 'http://token/endpoint',
       profile: profile,
     },
   })
@@ -235,10 +245,12 @@ test.serial('oauthCallback website missing token endpoint', async t => {
 test.serial('unknown action', async t => {
   await addUser()
 
+  expectVerifyToken()
   let res = await supertest(app).get('/newsblur/snarfed')
       .set('Authorization', 'Bearer my-token')
   t.is(res.statusCode, 501)
 
+  expectVerifyToken()
   res = await supertest(app).get('/newsblur/snarfed?action=foo')
       .set('Authorization', 'Bearer my-token')
   t.is(res.statusCode, 501)
@@ -268,8 +280,18 @@ test.serial('fetchChannels bad Authorization header', async t => {
   t.is(res.statusCode, 400)
 })
 
+test.serial("fetchChannels verify token fails", async t => {
+  await addUser()
+  expectVerifyToken(403)
+
+  const res = await supertest(app).get('/newsblur/snarfed?action=channels')
+      .set('Authorization', 'Bearer my-token')
+  t.is(res.statusCode, 403)
+})
+
 test.serial("fetchChannels can't log into NewsBlur", async t => {
   await addUser()
+  expectVerifyToken(200)
   expectApi('/reader/feeds', {authenticated: false})
 
   const res = await supertest(app).get('/newsblur/snarfed?action=channels')
@@ -279,6 +301,7 @@ test.serial("fetchChannels can't log into NewsBlur", async t => {
 
 test.serial('fetchChannels', async t => {
   await addUser()
+  expectVerifyToken(200)
   expectApi('/reader/feeds', nbFeeds)
 
   const res = await supertest(app).get('/newsblur/snarfed?action=channels')
@@ -289,6 +312,7 @@ test.serial('fetchChannels', async t => {
 
 test.serial('fetchItems', async t => {
   await addUser()
+  expectVerifyToken(200)
   expectApi('/reader/feeds', nbFeeds)
   expectApi('/reader/river_stories?', nbStories)
 
