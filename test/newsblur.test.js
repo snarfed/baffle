@@ -16,17 +16,17 @@ const datastore = newsblur.datastore
 // NewsBlur: https://newsblur.com/api
 const nbTokenRequest = {
   grant_type: 'authorization_code',
-  code: 'my-code',
+  code: 'my-nb-code',
   redirect_uri: /http:\/\/.+\/newsblur\/callback/,
   client_id: secrets.newsblur.client_id,
   client_secret: secrets.newsblur.client_secret,
 }
 
 const nbTokenResponse = {
-  access_token: 'my-token',
+  access_token: 'my-nb-token',
   token_type: 'Bearer',
   expires_in: 315360000,
-  refresh_token: 'my-refresh-token',
+  refresh_token: 'my-nb-refresh-token',
   scope: 'read write ifttt',
 }
 
@@ -149,7 +149,7 @@ test.beforeEach.serial('clear datastore', async t => {
 
 function expectApi(path, response) {
   nock('https://newsblur.com',
-       {reqheaders: {'Authorization': 'Bearer my-token',
+       {reqheaders: {'Authorization': 'Bearer my-nb-token',
                      'User-Agent': 'Baffle (https://baffle.tech)'}})
     .get(path)
     .reply(200, response)
@@ -158,7 +158,7 @@ function expectApi(path, response) {
 // https://indieweb.org/token-endpoint#Verifying_an_Access_Token
 function expectVerifyToken(status) {
   nock('http://token',
-       {reqheaders: {'Authorization': 'Bearer my-token',
+       {reqheaders: {'Authorization': 'Bearer my-ia-token',
                      'User-Agent': 'Baffle (https://baffle.tech)'}})
     .get('/endpoint')
     .reply(status, '')
@@ -168,7 +168,7 @@ async function addUser() {
   await datastore.save({
     key: datastore.key(['NewsBlurUser', 'snarfed']),
     data: {
-      access_token: 'my-token',
+      newsblur_token: 'my-nb-token',
       token_endpoint: 'http://token/endpoint',
       profile: profile,
     },
@@ -190,11 +190,11 @@ test.serial('oauthCallback, token endpoint in HTML', async t => {
   nock(profile.user_profile.website).get('/').reply(
     200, '<html><body><link rel="token_endpoint" href="http://foo"></body></html>')
 
-  const res = await supertest(app).get('/newsblur/callback?code=my-code')
+  const res = await supertest(app).get('/newsblur/callback?code=my-nb-code')
   t.is(res.statusCode, 200)
 
   const user = (await datastore.get(datastore.key(['NewsBlurUser', 'snarfed'])))[0]
-  t.is(user.access_token, 'my-token')
+  t.is(user.newsblur_token, 'my-nb-token')
   t.is(user.token_endpoint, 'http://foo/')
   t.deepEqual(user.profile, profile)
 })
@@ -208,11 +208,11 @@ test.serial('oauthCallback, token endpoint in HTTP header', async t => {
     'Link': ['xyz', "<http://foo>; rel='token_endpoint'"],
   })
 
-  const res = await supertest(app).get('/newsblur/callback?code=my-code')
+  const res = await supertest(app).get('/newsblur/callback?code=my-nb-code')
   t.is(res.statusCode, 200)
 
   const user = (await datastore.get(datastore.key(['NewsBlurUser', 'snarfed'])))[0]
-  t.is(user.access_token, 'my-token')
+  t.is(user.newsblur_token, 'my-nb-token')
   t.is(user.token_endpoint, 'http://foo')
   t.deepEqual(user.profile, profile)
 })
@@ -226,7 +226,7 @@ test.serial('oauthCallback missing website in profile', async t => {
   noWebsite.user_profile.website = null
   expectApi('/social/profile', noWebsite)
 
-  const res = await supertest(app).get('/newsblur/callback?code=my-code')
+  const res = await supertest(app).get('/newsblur/callback?code=my-nb-code')
   t.is(res.statusCode, 400)
 })
 
@@ -238,7 +238,7 @@ test.serial('oauthCallback website missing token endpoint', async t => {
   nock(profile.user_profile.website).get('/').reply(
     200, '<html><body>fooey</body></html>')
 
-  const res = await supertest(app).get('/newsblur/callback?code=my-code')
+  const res = await supertest(app).get('/newsblur/callback?code=my-nb-code')
   t.is(res.statusCode, 400)
 })
 
@@ -247,18 +247,18 @@ test.serial('unknown action', async t => {
 
   expectVerifyToken()
   let res = await supertest(app).get('/newsblur/snarfed')
-      .set('Authorization', 'Bearer my-token')
+      .set('Authorization', 'Bearer my-ia-token')
   t.is(res.statusCode, 501)
 
   expectVerifyToken()
   res = await supertest(app).get('/newsblur/snarfed?action=foo')
-      .set('Authorization', 'Bearer my-token')
+      .set('Authorization', 'Bearer my-ia-token')
   t.is(res.statusCode, 501)
 })
 
 test.serial('fetchChannels no user', async t => {
   const res = await supertest(app).get('/newsblur/snarfed?action=channels')
-      .set('Authorization', 'Bearer my-token')
+      .set('Authorization', 'Bearer my-ia-token')
   t.is(res.statusCode, 400)
 })
 
@@ -285,7 +285,7 @@ test.serial("fetchChannels verify token fails", async t => {
   expectVerifyToken(403)
 
   const res = await supertest(app).get('/newsblur/snarfed?action=channels')
-      .set('Authorization', 'Bearer my-token')
+      .set('Authorization', 'Bearer my-ia-token')
   t.is(res.statusCode, 403)
 })
 
@@ -295,7 +295,7 @@ test.serial("fetchChannels can't log into NewsBlur", async t => {
   expectApi('/reader/feeds', {authenticated: false})
 
   const res = await supertest(app).get('/newsblur/snarfed?action=channels')
-      .set('Authorization', 'Bearer my-token')
+      .set('Authorization', 'Bearer my-ia-token')
   t.is(res.statusCode, 401)
 })
 
@@ -305,7 +305,7 @@ test.serial('fetchChannels', async t => {
   expectApi('/reader/feeds', nbFeeds)
 
   const res = await supertest(app).get('/newsblur/snarfed?action=channels')
-      .set('Authorization', 'Bearer my-token')
+      .set('Authorization', 'Bearer my-ia-token')
   t.is(res.statusCode, 200)
   t.deepEqual(res.body, msChannels)
 })
@@ -317,7 +317,7 @@ test.serial('fetchItems', async t => {
   expectApi('/reader/river_stories?', nbStories)
 
   const res = await supertest(app).get('/newsblur/snarfed?action=timeline')
-      .set('Authorization', 'Bearer my-token')
+      .set('Authorization', 'Bearer my-ia-token')
   t.is(res.statusCode, 200)
   t.deepEqual(res.body, msTimeline)
 })

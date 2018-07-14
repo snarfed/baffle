@@ -41,6 +41,7 @@ async function handle(req, res) {
   const parts = auth.split(' ')
   if (!parts || parts.length != 2 || parts[0] != 'Bearer' || !parts[1])
     return err(res, 400, 'Bad Authorization header: ' + auth)
+  const indieauthToken = parts[1]
 
   const users = await datastore.get(
     [datastore.key(['NewsBlurUser', req.params.username])])
@@ -49,22 +50,25 @@ async function handle(req, res) {
                ' not found. Try signing up on https://baffle.tech !')
 
   const user = users[0][0]
-  assert(user.token_endpoint)
-  const token = users[0][0].access_token
-  assert(token)
+  const endpoint = user.token_endpoint
+  assert(endpoint)
 
-  // Verify token
+  // Verify IndieAuth token
   // https://indieweb.org/token-endpoint#Verifying_an_Access_Token
+  console.log(`Verifying access token ${indieauthToken} with ${endpoint}`)
   const verifyRes = await fetch(user.token_endpoint, {
     method: 'GET',
     headers: {
-      'Authorization': 'Bearer ' + token,
+      'Authorization': 'Bearer ' + indieauthToken,
       'User-Agent': 'Baffle (https://baffle.tech)',
     }})
   if (!verifyRes.ok)
-    return err(res, 403, `Couldn't verify acces token with ${user.token_endpoint}: ${verifyRes.status} ${verifyRes.statusText}`)
+    return err(res, 403, `Couldn't access token: ${verifyRes.status} ${verifyRes.statusText}`)
+  console.log(`Verified token`)
 
   // Route to specific action handler
+  const token = users[0][0].newsblur_token
+  assert(token)
   if (req.query.action == 'channels')
     await fetchChannels(res, token)
   else if (req.query.action == 'timeline')
@@ -128,6 +132,7 @@ async function oauthCallback(req, res) {
       error: 'Please add your web site to your NewsBlur profile, then try again!'})
 
   // Discover token endpoint
+  console.log(`Fetching ${website}`)
   const websiteRes = await fetch(website, {
       method: 'GET',
       headers: {'User-Agent': 'Baffle (https://baffle.tech)'},
@@ -157,12 +162,13 @@ async function oauthCallback(req, res) {
 
   if (!endpoint)
     return err(res, 400, `Couldn't find a token endpoint in your web site ${website}`)
+  console.log(`Discovered token endpoint ${endpoint}`)
 
   // Store user in datastore
   await datastore.save({
     key: datastore.key(['NewsBlurUser', profile.user_profile.username]),
     data: {
-      access_token: token,
+      newsblur_token: token,
       token_endpoint: endpoint,
       profile: profile,
     },
