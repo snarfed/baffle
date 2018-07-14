@@ -13,7 +13,24 @@ const secrets = require('../secrets.json')
 
 const datastore = newsblur.datastore
 
-// https://newsblur.com/api#/social/profile
+// NewsBlur: https://newsblur.com/api
+const nbTokenRequest = {
+  grant_type: 'authorization_code',
+  code: 'my-code',
+  redirect_uri: /http:\/\/.+\/newsblur\/callback/,
+  client_id: secrets.newsblur.client_id,
+  client_secret: secrets.newsblur.client_secret,
+}
+
+const nbTokenResponse = {
+  access_token: 'my-token',
+  token_type: 'Bearer',
+  expires_in: 315360000,
+  refresh_token: 'my-refresh-token',
+  scope: 'read write ifttt',
+}
+
+// NewsBlur: https://newsblur.com/api#/social/profile
 const profile = {
   authenticated: true,
   result: 'ok',
@@ -155,31 +172,64 @@ test.serial('oauthStart', async t => {
           /https:\/\/newsblur.com\/oauth\/authorize\?response_type=code&redirect_uri=http:\/\/.+\/newsblur\/callback&client_id=[^&]+/)
 })
 
-test.serial('oauthCallback', async t => {
+test.serial('oauthCallback, token endpoint in HTML', async t => {
   nock('https://newsblur.com')
-    .post('/oauth/token', {
-      grant_type: 'authorization_code',
-      code: 'my-code',
-      redirect_uri: /http:\/\/.+\/newsblur\/callback/,
-      client_id: secrets.newsblur.client_id,
-      client_secret: secrets.newsblur.client_secret,
-    })
-    .reply(200, {
-      access_token: 'my-token',
-      token_type: 'Bearer',
-      expires_in: 315360000,
-      refresh_token: 'my-refresh-token',
-      scope: 'read write ifttt',
-    })
-
+    .post('/oauth/token', nbTokenRequest)
+    .reply(200, nbTokenResponse)
   expectApi('/social/profile', profile)
+  nock(profile.user_profile.website).get('/').reply(
+    200, '<html><body><link rel="token_endpoint" href="http://foo"></body></html>')
 
   const res = await supertest(app).get('/newsblur/callback?code=my-code')
   t.is(res.statusCode, 200)
 
   const user = (await datastore.get(datastore.key(['NewsBlurUser', 'snarfed'])))[0]
   t.is(user.access_token, 'my-token')
+  t.is(user.token_endpoint, 'http://foo/')
   t.deepEqual(user.profile, profile)
+})
+
+test.serial('oauthCallback, token endpoint in HTTP header', async t => {
+  nock('https://newsblur.com')
+    .post('/oauth/token', nbTokenRequest)
+    .reply(200, nbTokenResponse)
+  expectApi('/social/profile', profile)
+  nock(profile.user_profile.website).get('/').reply(200, 'foo', {
+    'Link': ['xyz', "<http://foo>; rel='token_endpoint'"],
+  })
+
+  const res = await supertest(app).get('/newsblur/callback?code=my-code')
+  t.is(res.statusCode, 200)
+
+  const user = (await datastore.get(datastore.key(['NewsBlurUser', 'snarfed'])))[0]
+  t.is(user.access_token, 'my-token')
+  t.is(user.token_endpoint, 'http://foo')
+  t.deepEqual(user.profile, profile)
+})
+
+test.serial('oauthCallback missing website in profile', async t => {
+  nock('https://newsblur.com')
+    .post('/oauth/token', nbTokenRequest)
+    .reply(200, nbTokenResponse)
+
+  let noWebsite = JSON.parse(JSON.stringify(profile))  // deep copy
+  noWebsite.user_profile.website = null
+  expectApi('/social/profile', noWebsite)
+
+  const res = await supertest(app).get('/newsblur/callback?code=my-code')
+  t.is(res.statusCode, 400)
+})
+
+test.serial('oauthCallback website missing token endpoint', async t => {
+  nock('https://newsblur.com')
+    .post('/oauth/token', nbTokenRequest)
+    .reply(200, nbTokenResponse)
+  expectApi('/social/profile', profile)
+  nock(profile.user_profile.website).get('/').reply(
+    200, '<html><body>fooey</body></html>')
+
+  const res = await supertest(app).get('/newsblur/callback?code=my-code')
+  t.is(res.statusCode, 400)
 })
 
 test.serial('unknown action', async t => {

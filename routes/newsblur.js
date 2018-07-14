@@ -7,6 +7,7 @@
 const assert = require('assert');
 const Datastore = require('@google-cloud/datastore')
 const fetch = require('node-fetch')
+const { JSDOM } = require('jsdom')
 const querystring = require('querystring')
 const { URL, URLSearchParams } = require('url')
 
@@ -98,19 +99,58 @@ async function oauthCallback(req, res) {
       body: body,
   })
 
-  if (tokenRes.status != 200)
+  if (!tokenRes.ok)
     return err(res, tokenRes.status, 'NewsBlur error: ' + tokenRes.statusText)
 
-  // Get user profile, store in datastore
+  // Get user profile
   const token = (await tokenRes.json()).access_token
   const profile = await fetchNewsBlur(res, '/social/profile', token)
-  if (!profile)
+  if (!profile || !profile.user_profile)
     return
 
+  const website = profile.user_profile.website
+  if (!website)
+    return res.status(400).render('index', {
+      error: 'Please add your web site to your NewsBlur profile, then try again!'})
+
+  // Discover token endpoint
+  const websiteRes = await fetch(website, {
+      method: 'GET',
+      headers: {'User-Agent': 'Baffle (https://baffle.tech)'},
+  })
+  if (!websiteRes.ok)
+    return err(res, 400, `Couldn't fetch your web site ${website}: ${websiteRes.status} ${websiteRes.statusText}`)
+
+
+  let endpoint = null
+  console.log('@', websiteRes.headers.get('Link'), typeof websiteRes.headers.get('Link'))
+  const links = websiteRes.headers.get('Link')
+  if (links) {
+    for (let link of links.split(',')) {
+      const match = / *<(.+)>; rel=['"]token_endpoint['"] */.exec(link)
+      if (match) {
+        endpoint = match[1]
+        break
+      }
+    }
+  }
+
+  if (!endpoint) {
+    let dom = new JSDOM(await websiteRes.text())
+    let link = dom.window.document.querySelector('link[rel="token_endpoint"]')
+    if (link)
+      endpoint = link.href
+  }
+
+  if (!endpoint)
+    return err(res, 400, `Couldn't find a token endpoint in your web site ${website}`)
+
+  // Store user in datastore
   await datastore.save({
     key: datastore.key(['NewsBlurUser', profile.user_profile.username]),
     data: {
       access_token: token,
+      token_endpoint: endpoint,
       profile: profile,
     },
   })
@@ -199,7 +239,7 @@ async function fetchNewsBlur(res, path, token) {
         'User-Agent': 'Baffle (https://baffle.tech)',
       }
     })
-  if (nbRes.status != 200)
+  if (!nbRes.ok)
     return err(res, nbRes.status, 'NewsBlur error: ' + nbRes.statusText)
 
   const nbJson = await nbRes.json()

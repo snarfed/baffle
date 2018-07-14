@@ -25,7 +25,7 @@ body
     if declined
       p.lead(style="color: red") User declined the access request.
     else if error
-      p.lead(style="color: red") Error fetching user details: #{error}
+      p.lead(style="color: red") #{error}
     else if username
       p.lead(style="color: green") Welcome! Now, add this to your web site's home page:
       pre= `<link rel="microsub" href="https://baffle.tech/newsblur/${username}">`
