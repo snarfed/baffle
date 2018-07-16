@@ -72,7 +72,7 @@ async function handle(req, res) {
   if (req.query.action == 'channels')
     await channelsAction(res, token)
   else if (req.query.action == 'timeline')
-    await timelineAction(res, req.query.channel, token)
+    await timelineAction(res, req, token)
   else
     err(res, 501, req.query.action + ' action not supported yet')
 
@@ -181,7 +181,7 @@ module.exports.oauthCallback = oauthCallback
 /**
  * Microsub.
  */
-async function timelineAction(res, channel, token) {
+async function timelineAction(res, req, token) {
   const feeds = await fetchNewsBlur(res, '/reader/feeds', token)
   // TODO: switch to exceptions
   if (!feeds)
@@ -190,7 +190,7 @@ async function timelineAction(res, channel, token) {
   let feedIds = []
   for (const folder of feeds.folders) {
     if (folder instanceof Object &&
-        (!channel || channel == Object.keys(folder)[0])) {
+        (!req.query.channel || req.query.channel == Object.keys(folder)[0])) {
       Array.prototype.push.apply(feedIds, Object.values(folder)[0])
     }
   }
@@ -198,26 +198,45 @@ async function timelineAction(res, channel, token) {
   let params = new URLSearchParams()
   for (const id of feedIds)
     params.append('feeds', id)
+
+  const page = req.query.after || req.query.before
+  var pageNum = null
+  if (page) {
+    pageNum = Number.parseInt(page)
+    if (Number.isNaN(pageNum) || pageNum < 1)
+      return err(res, 400, `Invalid page ${page}`)
+    params.append('page', page)
+  }
+
   const stories = await fetchNewsBlur(
     res, '/reader/river_stories?' + params.toString(), token)
   if (!stories)
     return
 
-  res.json({'items': stories.stories.map(s => ({
-    type: 'entry',
-    published: s.story_date,
-    url: s.story_permalink,
-    author: {
-      type: 'card',
-      name: s.story_authors,
-    },
-    category: s.story_tags,
-    // photo: s.image_urls,
-    name: s.story_title,
-    content: {html: s.story_content},
-    _id: s.story_id,
-    _is_read: s.read_status != 0,
-  }))})
+  var paging = {}
+  if (pageNum)
+    paging['before'] = (pageNum - 1).toString()
+  if (stories.stories.length > 0)
+    paging['after'] = pageNum ? (pageNum + 1).toString() : '2'
+
+  res.json({
+    'items': stories.stories.map(s => ({
+      type: 'entry',
+      published: s.story_date,
+      url: s.story_permalink,
+      author: {
+        type: 'card',
+        name: s.story_authors,
+      },
+      category: s.story_tags,
+      // photo: s.image_urls,
+      name: s.story_title,
+      content: {html: s.story_content},
+      _id: s.story_id,
+      _is_read: s.read_status != 0,
+    })),
+    'paging': paging,
+  })
 }
 
 async function channelsAction(res, token) {

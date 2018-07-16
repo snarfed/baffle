@@ -136,6 +136,9 @@ const msTimeline = {
     },
     category: ['one', 'two'],
   }],
+  'paging': {
+    'after': '2',
+  },
 }
 
 
@@ -333,3 +336,24 @@ test.serial('timelineAction with channel', async t => {
   t.is(res.statusCode, 200)
   t.deepEqual(res.body, msTimeline)
 })
+
+async function testPaging(t, param) {
+  await addUser()
+  expectVerifyToken(200)
+  expectApi('/reader/feeds', nbFeeds)
+  expectApi('/reader/river_stories?feeds=123&feeds=456&feeds=789&page=3', nbStories)
+
+  const res = await supertest(app).get(`/newsblur/snarfed?action=timeline&${param}=3`)
+      .set('Authorization', 'Bearer my-ia-token')
+  t.is(res.statusCode, 200)
+
+  let page3 = JSON.parse(JSON.stringify(msTimeline))  // deep copy
+  page3['paging'] = {
+    'before': '2',
+    'after': '4',
+  }
+  t.deepEqual(res.body, page3)
+}
+
+test.serial('timelineAction with after', async t => { await testPaging(t, 'after') })
+test.serial('timelineAction with before', async t => { await testPaging(t, 'before') })
