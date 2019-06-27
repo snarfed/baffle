@@ -10,7 +10,7 @@
     "url": "https://github.com/snarfed/baffle.git"
   },
   "engines": {
-    "node": "8.x.x"
+    "node": "10.x.x"
   },
   "scripts": {
     "deploy": "gcloud app deploy",

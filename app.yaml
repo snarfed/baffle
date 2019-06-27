@@ -1,7 +1,7 @@
 # https://cloud.google.com/appengine/docs/standard/nodejs/config/appref
 
 # application: baffle-microsub
-runtime: nodejs8
+runtime: nodejs10
 
 handlers:
 # These static file handlers are duplicated in app.js. If you change them here,
