@@ -1,4 +1,7 @@
-# baffle
+# Baffle
+
+_This project is unmaintained and no longer online. Feel free to use the source though!_
+
 Bridges Microsub reader clients to traditional feed reader backends.
 
 [https://baffle.tech/](https://baffle.tech/)

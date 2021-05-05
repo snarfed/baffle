@@ -12,9 +12,6 @@ handlers:
   secure: always
 
 - url: /
-  script: auto
-  secure: always
-
-- url: /newsblur/.+
-  script: auto
+  static_files: public/index.html
+  upload: public/index.html
   secure: always
